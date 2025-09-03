@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real-Time Chess</title>
+
+  <!-- jQuery -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  <!-- Chess.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.2/chess.min.js"></script>
+  <!-- Chessboard.js -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+  <!-- Socket.io -->
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #f0f0f0;
+    }
+    h1 {
+      margin-top: 20px;
+    }
+    #chessboard {
+      margin-top: 20px;
+      width: 400px;
+      height: 400px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Real-Time Chess</h1>
+  <div id="chessboard"></div>
+
+  <script>
+    const socket = io("http://localhost:3000"); // kết nối tới server Node.js
+    const game = new Chess();
+
+    const board = Chessboard('chessboard', {
+      draggable: true,
+      position: 'start',
+      pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png',
+      onDragStart: (source, piece) => {
+        if (game.game_over() || (game.turn() === 'w' && piece.search(/^b/) !== -1) || (game.turn() === 'b' && piece.search(/^w/) !== -1)) {
+          return false;
+        }
+      },
+      onDrop: (source, target) => {
+        let move = game.move({
+          from: source,
+          to: target,
+          promotion: 'q'
+        });
+        if (move === null) return 'snapback';
+
+        // Gửi nước đi tới server
+        socket.emit("move", move);
+      },
+      onSnapEnd: () => {
+        board.position(game.fen());
+      }
+    });
+
+    // Nhận nước đi từ server
+    socket.on("move", (move) => {
+      game.move(move);
+      board.position(game.fen());
+    });
+  </script>
+</body>
+</html>
